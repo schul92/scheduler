@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "찬양팀 스케줄러",
+    "slug": "scheduler",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "scheduler",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f8f7f6"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.scheduler.app",
+      "usesAppleSignIn": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f8f7f6"
+      },
+      "package": "com.scheduler.app",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-apple-authentication"
+    ]
+  }
+}
