@@ -1,8 +1,20 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 # Claude Code settings (contains sensitive tokens)
-.claude/settings.json
+.claude/
 .mcp.json
+
+# Test artifacts and screenshots
+*.png
+*.jpeg
+*.jpg
+logs/
+specs/
+tests/
+.maestro/
+PLAYWRIGHT_SETUP.md
+playwright.config.ts
+seed.spec.ts
 
 # dependencies
 node_modules/
@@ -36,6 +48,14 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+.env.local
+.env.development
+.env.production
+
+# Secrets
+*.secret
+secrets/
 
 # typescript
 *.tsbuildinfo

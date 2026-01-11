@@ -504,6 +504,8 @@ export type Database = {
           joined_at: string;
           membership_role: Database['public']['Enums']['membership_role_enum'];
           nickname: string | null;
+          notifications_enabled: boolean;
+          parts: string[] | null;
           status: Database['public']['Enums']['member_status_enum'];
           team_id: string;
           updated_at: string;
@@ -515,6 +517,8 @@ export type Database = {
           joined_at?: string;
           membership_role?: Database['public']['Enums']['membership_role_enum'];
           nickname?: string | null;
+          notifications_enabled?: boolean;
+          parts?: string[] | null;
           status?: Database['public']['Enums']['member_status_enum'];
           team_id: string;
           updated_at?: string;
@@ -526,6 +530,8 @@ export type Database = {
           joined_at?: string;
           membership_role?: Database['public']['Enums']['membership_role_enum'];
           nickname?: string | null;
+          notifications_enabled?: boolean;
+          parts?: string[] | null;
           status?: Database['public']['Enums']['member_status_enum'];
           team_id?: string;
           updated_at?: string;
@@ -599,34 +605,43 @@ export type Database = {
         Row: {
           avatar_url: string | null;
           created_at: string;
+          device_type: string | null;
           email: string;
           full_name: string | null;
           id: string;
           kakao_id: string | null;
           phone: string | null;
           preferred_language: string | null;
+          push_token: string | null;
+          push_token_updated_at: string | null;
           updated_at: string;
         };
         Insert: {
           avatar_url?: string | null;
           created_at?: string;
+          device_type?: string | null;
           email: string;
           full_name?: string | null;
           id: string;
           kakao_id?: string | null;
           phone?: string | null;
           preferred_language?: string | null;
+          push_token?: string | null;
+          push_token_updated_at?: string | null;
           updated_at?: string;
         };
         Update: {
           avatar_url?: string | null;
           created_at?: string;
+          device_type?: string | null;
           email?: string;
           full_name?: string | null;
           id?: string;
           kakao_id?: string | null;
           phone?: string | null;
           preferred_language?: string | null;
+          push_token?: string | null;
+          push_token_updated_at?: string | null;
           updated_at?: string;
         };
         Relationships: [];

@@ -1,15 +1,21 @@
+/**
+ * Button Component
+ *
+ * Refactored to use NativeWind v4 with Tailwind CSS classes
+ * Uses clsx for variant-based conditional styling
+ */
+
 import React from 'react';
 import {
   TouchableOpacity,
   Text,
-  StyleSheet,
-  ViewStyle,
-  TextStyle,
   ActivityIndicator,
   View,
+  ViewStyle,
+  TextStyle,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SIZES, SHADOWS } from '../constants/theme';
+import clsx from 'clsx';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'google' | 'apple';
 
@@ -25,6 +31,33 @@ interface ButtonProps {
   textStyle?: TextStyle;
 }
 
+// Variant-based button container classes
+const buttonVariants: Record<ButtonVariant, string> = {
+  primary: 'bg-primary shadow-primary',
+  secondary: 'bg-text-primary shadow-md',
+  outline: 'bg-transparent border-2 border-border',
+  google: 'bg-surface border border-border shadow-sm',
+  apple: 'bg-black shadow-md',
+};
+
+// Variant-based text classes
+const textVariants: Record<ButtonVariant, string> = {
+  primary: 'text-text-primary',
+  secondary: 'text-white',
+  outline: 'text-text-primary',
+  google: 'text-text-primary',
+  apple: 'text-white',
+};
+
+// Icon colors for ActivityIndicator and MaterialIcons
+const iconColors: Record<ButtonVariant, string> = {
+  primary: '#2C3E50',
+  secondary: '#FFFFFF',
+  outline: '#2C3E50',
+  google: '#2C3E50',
+  apple: '#FFFFFF',
+};
+
 export const Button: React.FC<ButtonProps> = ({
   title,
   onPress,
@@ -36,102 +69,53 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
-  const getButtonStyle = (): ViewStyle => {
-    switch (variant) {
-      case 'primary':
-        return {
-          backgroundColor: COLORS.primary,
-          ...SHADOWS.primary,
-        };
-      case 'secondary':
-        return {
-          backgroundColor: COLORS.navy,
-          ...SHADOWS.medium,
-        };
-      case 'outline':
-        return {
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          borderColor: COLORS.border,
-        };
-      case 'google':
-        return {
-          backgroundColor: COLORS.surfaceLight,
-          borderWidth: 1,
-          borderColor: COLORS.border,
-          ...SHADOWS.small,
-        };
-      case 'apple':
-        return {
-          backgroundColor: '#000000',
-          ...SHADOWS.medium,
-        };
-      default:
-        return {};
-    }
-  };
-
-  const getTextStyle = (): TextStyle => {
-    switch (variant) {
-      case 'primary':
-        return { color: COLORS.navy };
-      case 'secondary':
-        return { color: COLORS.textLight };
-      case 'outline':
-        return { color: COLORS.navy };
-      case 'google':
-        return { color: COLORS.navy };
-      case 'apple':
-        return { color: COLORS.textLight };
-      default:
-        return {};
-    }
-  };
-
-  const getIconColor = (): string => {
-    switch (variant) {
-      case 'primary':
-        return COLORS.navy;
-      case 'secondary':
-      case 'apple':
-        return COLORS.textLight;
-      default:
-        return COLORS.navy;
-    }
-  };
+  const iconColor = iconColors[variant];
 
   return (
     <TouchableOpacity
-      style={[
-        styles.button,
-        getButtonStyle(),
-        disabled && styles.disabled,
-        style,
-      ]}
+      className={clsx(
+        // Base styles
+        'h-[52px] rounded-md justify-center items-center w-full',
+        // Variant styles
+        buttonVariants[variant],
+        // Disabled state
+        disabled && 'opacity-50'
+      )}
+      style={style}
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator color={getIconColor()} />
+        <ActivityIndicator color={iconColor} />
       ) : (
-        <View style={styles.content}>
+        <View className="flex-row items-center justify-center gap-2">
           {iconComponent}
           {icon && !iconComponent && (
             <MaterialIcons
               name={icon}
               size={20}
-              color={getIconColor()}
-              style={styles.icon}
+              color={iconColor}
+              className="mr-1"
             />
           )}
-          <Text style={[styles.text, getTextStyle(), textStyle]}>{title}</Text>
+          <Text
+            className={clsx(
+              // Base text styles
+              'text-base font-bold tracking-wide',
+              // Variant text styles
+              textVariants[variant]
+            )}
+            style={textStyle}
+          >
+            {title}
+          </Text>
           {variant === 'primary' && (
             <MaterialIcons
               name="arrow-forward"
               size={20}
-              color={getIconColor()}
-              style={styles.arrowIcon}
+              color={iconColor}
+              className="ml-1"
             />
           )}
         </View>
@@ -139,33 +123,3 @@ export const Button: React.FC<ButtonProps> = ({
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  button: {
-    height: SIZES.buttonHeight,
-    borderRadius: SIZES.radiusMedium,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  text: {
-    fontSize: SIZES.medium,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  icon: {
-    marginRight: 4,
-  },
-  arrowIcon: {
-    marginLeft: 4,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});

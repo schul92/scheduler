@@ -153,6 +153,55 @@ export async function getCurrentUserId(): Promise<string | null> {
 }
 
 /**
+ * Ensure the user exists in public.users table
+ * This handles the case where the auth trigger hasn't run yet
+ *
+ * @returns True if user exists or was created, false on error
+ */
+export async function ensureUserExists(): Promise<boolean> {
+  const authUser = await getAuthUser();
+  if (!authUser) {
+    console.log('[Supabase] ensureUserExists: No auth user');
+    return false;
+  }
+
+  // Check if user exists in public.users
+  const { data: existingUser, error: fetchError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', authUser.id)
+    .single();
+
+  if (existingUser) {
+    console.log('[Supabase] ensureUserExists: User already exists');
+    return true;
+  }
+
+  // User doesn't exist, create them
+  console.log('[Supabase] ensureUserExists: Creating user record');
+  const { error: insertError } = await supabase
+    .from('users')
+    .insert({
+      id: authUser.id,
+      email: authUser.email || '',
+      full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
+    });
+
+  if (insertError) {
+    // Might fail due to race condition with trigger - check again
+    if (insertError.code === '23505') { // Unique violation = already exists
+      console.log('[Supabase] ensureUserExists: User created by trigger');
+      return true;
+    }
+    console.error('[Supabase] ensureUserExists: Insert failed:', insertError);
+    return false;
+  }
+
+  console.log('[Supabase] ensureUserExists: User created successfully');
+  return true;
+}
+
+/**
  * Check if the user is authenticated
  *
  * @returns True if authenticated, false otherwise

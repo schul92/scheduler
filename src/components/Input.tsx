@@ -1,14 +1,20 @@
+/**
+ * Input Component
+ *
+ * Refactored to use NativeWind v4 with Tailwind CSS classes
+ * Uses clsx for conditional styling based on focus and error states
+ */
+
 import React, { useState } from 'react';
 import {
   View,
   TextInput,
   Text,
-  StyleSheet,
   ViewStyle,
   TextInputProps,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import clsx from 'clsx';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -26,81 +32,56 @@ export const Input: React.FC<InputProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
+  // Dynamic icon color based on focus state
+  const iconColor = isFocused ? '#D4A574' : '#6B7280';
+
   return (
-    <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+    <View className="w-full gap-2" style={containerStyle}>
+      {label && (
+        <Text className="text-sm font-semibold text-text-primary ml-1">
+          {label}
+        </Text>
+      )}
       <View
-        style={[
-          styles.inputContainer,
-          isFocused && styles.inputContainerFocused,
-          error && styles.inputContainerError,
-        ]}
+        className={clsx(
+          // Base styles
+          'flex-row items-center h-[52px] bg-surface rounded-md px-md',
+          // Border styles - conditional based on state
+          'border',
+          {
+            // Default state
+            'border-border': !isFocused && !error,
+            // Focused state
+            'border-primary border-2': isFocused && !error,
+            // Error state
+            'border-error': error,
+          }
+        )}
       >
         {icon && (
           <MaterialIcons
             name={icon}
             size={24}
-            color={isFocused ? COLORS.primary : COLORS.textSecondary}
-            style={styles.icon}
+            color={iconColor}
+            style={{ marginRight: 12 }}
           />
         )}
         <TextInput
-          style={[styles.input, icon && styles.inputWithIcon]}
-          placeholderTextColor={COLORS.textMuted}
+          className={clsx(
+            'flex-1 text-lg font-medium text-text-primary tracking-wide',
+            icon && 'pl-0'
+          )}
+          placeholderTextColor="#9CA3AF"
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           {...props}
         />
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && (
+        <Text className="text-sm text-error ml-1">
+          {error}
+        </Text>
+      )}
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    gap: 8,
-  },
-  label: {
-    fontSize: SIZES.small,
-    fontWeight: '600',
-    color: COLORS.navy,
-    marginLeft: 4,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: SIZES.inputHeight,
-    backgroundColor: COLORS.surfaceLight,
-    borderRadius: SIZES.radiusMedium,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SIZES.medium,
-  },
-  inputContainerFocused: {
-    borderColor: COLORS.primary,
-    borderWidth: 2,
-  },
-  inputContainerError: {
-    borderColor: COLORS.error,
-  },
-  icon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: SIZES.large,
-    fontWeight: '500',
-    color: COLORS.navy,
-    letterSpacing: 1,
-  },
-  inputWithIcon: {
-    paddingLeft: 0,
-  },
-  errorText: {
-    fontSize: SIZES.small,
-    color: COLORS.error,
-    marginLeft: 4,
-  },
-});

@@ -15,8 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.scheduler.app",
-      "usesAppleSignIn": true
+      "bundleIdentifier": "com.scheduler.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +31,22 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-apple-authentication"
+      "expo-router",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "zoe-studio-llc",
+          "project": "react-native"
+        }
+      ],
+      "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "color": "#6366F1",
+          "sounds": []
+        }
+      ]
     ]
   }
 }
