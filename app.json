@@ -39,7 +39,8 @@
         "@sentry/react-native/expo",
         {
           "organization": "zoe-studio-llc",
-          "project": "react-native"
+          "project": "react-native",
+          "uploadSourceMaps": false
         }
       ],
       "expo-localization",
