@@ -4,10 +4,10 @@
 .claude/
 .mcp.json
 
-# Test artifacts and screenshots
-*.png
-*.jpeg
-*.jpg
+# Test artifacts and screenshots (in root, not assets/)
+/*.png
+/*.jpeg
+/*.jpg
 logs/
 specs/
 tests/
