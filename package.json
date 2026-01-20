@@ -11,13 +11,13 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "@react-native-community/datetimepicker": "^8.5.1",
-    "@react-navigation/native": "^7.1.26",
-    "@react-navigation/native-stack": "^7.9.0",
-    "@sentry/react-native": "^7.8.0",
+    "@react-native-community/datetimepicker": "^8.4.4",
+    "@react-navigation/native": "^7.1.8",
+    "@react-navigation/native-stack": "^7.3.16",
+    "@sentry/react-native": "^7.2.0",
     "@supabase/supabase-js": "^2.89.0",
     "clsx": "^2.1.1",
-    "expo": "~54.0.30",
+    "expo": "~54.0.31",
     "expo-application": "~7.0.8",
     "expo-auth-session": "^7.0.10",
     "expo-blur": "^15.0.8",
@@ -52,7 +52,7 @@
     "react-native-url-polyfill": "^3.0.0",
     "react-native-view-shot": "^4.0.3",
     "react-native-web": "^0.21.2",
-    "react-native-worklets": "^0.7.2",
+    "react-native-worklets": "^0.5.1",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
