@@ -35,14 +35,6 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "@sentry/react-native/expo",
-        {
-          "organization": "zoe-studio-llc",
-          "project": "react-native",
-          "uploadSourceMaps": false
-        }
-      ],
       "expo-localization",
       [
         "expo-notifications",
@@ -50,7 +42,8 @@
           "color": "#6366F1",
           "sounds": []
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "router": {},
