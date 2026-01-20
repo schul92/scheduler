@@ -2,15 +2,35 @@
  * Sentry Error Tracking
  *
  * Centralized error tracking and reporting for production monitoring.
+ * Note: Sentry native plugin was removed from app.json due to build issues.
+ * This module gracefully handles the case where native modules are unavailable.
  */
 
-import * as Sentry from '@sentry/react-native';
+// Track if Sentry is available (native modules may not be linked)
+let SentryModule: typeof import('@sentry/react-native') | null = null;
+let sentryInitialized = false;
+
+// Try to import Sentry - it may fail if native modules aren't linked
+try {
+  SentryModule = require('@sentry/react-native');
+} catch (error) {
+  console.warn('[Sentry] Native module not available - error tracking disabled');
+}
 
 /**
  * Initialize Sentry error tracking
  * Call this at app startup in _layout.tsx
  */
 export function initSentry() {
+  if (!SentryModule) {
+    console.warn('[Sentry] Cannot initialize - native module not available');
+    return;
+  }
+
+  if (sentryInitialized) {
+    return;
+  }
+
   const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
   if (!dsn) {
@@ -18,31 +38,37 @@ export function initSentry() {
     return;
   }
 
-  Sentry.init({
-    dsn,
-    environment: __DEV__ ? 'development' : 'production',
-    // Only send 20% of transactions in production for performance monitoring
-    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
-    // Attach stack traces to all messages
-    attachStacktrace: true,
-    // Track user sessions
-    enableAutoSessionTracking: true,
-    // Don't send in development by default
-    enabled: !__DEV__,
-    // Capture unhandled promise rejections
-    enableNativeNagger: false,
-    // Breadcrumb configuration
-    maxBreadcrumbs: 50,
-    // Before send hook for filtering
-    beforeSend(event) {
-      // Don't send events in development
-      if (__DEV__) {
-        console.log('[Sentry] Would send event:', event.message || event.exception);
-        return null;
-      }
-      return event;
-    },
-  });
+  try {
+    SentryModule.init({
+      dsn,
+      environment: __DEV__ ? 'development' : 'production',
+      // Only send 20% of transactions in production for performance monitoring
+      tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+      // Attach stack traces to all messages
+      attachStacktrace: true,
+      // Track user sessions
+      enableAutoSessionTracking: true,
+      // Don't send in development by default
+      enabled: !__DEV__,
+      // Capture unhandled promise rejections
+      enableNativeNagger: false,
+      // Breadcrumb configuration
+      maxBreadcrumbs: 50,
+      // Before send hook for filtering
+      beforeSend(event) {
+        // Don't send events in development
+        if (__DEV__) {
+          console.log('[Sentry] Would send event:', event.message || event.exception);
+          return null;
+        }
+        return event;
+      },
+    });
+    sentryInitialized = true;
+    console.log('[Sentry] Initialized successfully');
+  } catch (error) {
+    console.warn('[Sentry] Failed to initialize:', error instanceof Error ? error.message : error);
+  }
 }
 
 /**
@@ -58,7 +84,9 @@ export function captureError(error: Error | unknown, context?: Record<string, an
     return;
   }
 
-  Sentry.captureException(err, {
+  if (!SentryModule || !sentryInitialized) return;
+
+  SentryModule.captureException(err, {
     extra: context,
   });
 }
@@ -66,12 +94,12 @@ export function captureError(error: Error | unknown, context?: Record<string, an
 /**
  * Capture a message (non-error event)
  * @param message - The message to capture
- * @param level - Severity level
+ * @param level - Severity level ('fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug')
  * @param context - Additional context
  */
 export function captureMessage(
   message: string,
-  level: Sentry.SeverityLevel = 'info',
+  level: 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug' = 'info',
   context?: Record<string, any>
 ) {
   if (__DEV__) {
@@ -79,7 +107,9 @@ export function captureMessage(
     return;
   }
 
-  Sentry.captureMessage(message, {
+  if (!SentryModule || !sentryInitialized) return;
+
+  SentryModule.captureMessage(message, {
     level,
     extra: context,
   });
@@ -92,7 +122,9 @@ export function captureMessage(
  * @param email - User's email (optional)
  */
 export function setUser(userId: string, email?: string) {
-  Sentry.setUser({
+  if (!SentryModule || !sentryInitialized) return;
+
+  SentryModule.setUser({
     id: userId,
     email,
   });
@@ -103,7 +135,9 @@ export function setUser(userId: string, email?: string) {
  * Call on logout
  */
 export function clearUser() {
-  Sentry.setUser(null);
+  if (!SentryModule || !sentryInitialized) return;
+
+  SentryModule.setUser(null);
 }
 
 /**
@@ -117,7 +151,9 @@ export function addBreadcrumb(
   category: string,
   data?: Record<string, any>
 ) {
-  Sentry.addBreadcrumb({
+  if (!SentryModule || !sentryInitialized) return;
+
+  SentryModule.addBreadcrumb({
     message,
     category,
     data,
@@ -131,7 +167,9 @@ export function addBreadcrumb(
  * @param value - Tag value
  */
 export function setTag(key: string, value: string) {
-  Sentry.setTag(key, value);
+  if (!SentryModule || !sentryInitialized) return;
+
+  SentryModule.setTag(key, value);
 }
 
 /**
@@ -140,17 +178,21 @@ export function setTag(key: string, value: string) {
  * @param teamName - Current team name
  */
 export function setTeamContext(teamId: string, teamName: string) {
-  Sentry.setTag('team_id', teamId);
-  Sentry.setTag('team_name', teamName);
+  if (!SentryModule || !sentryInitialized) return;
+
+  SentryModule.setTag('team_id', teamId);
+  SentryModule.setTag('team_name', teamName);
 }
 
 /**
  * Clear team context (on team switch or logout)
  */
 export function clearTeamContext() {
-  Sentry.setTag('team_id', '');
-  Sentry.setTag('team_name', '');
+  if (!SentryModule || !sentryInitialized) return;
+
+  SentryModule.setTag('team_id', '');
+  SentryModule.setTag('team_name', '');
 }
 
-// Export Sentry for advanced usage
-export { Sentry };
+// Export Sentry module for advanced usage (may be null if not available)
+export { SentryModule as Sentry };
