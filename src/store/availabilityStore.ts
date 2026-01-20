@@ -130,10 +130,10 @@ export const useAvailabilityStore = create<AvailabilityState & AvailabilityActio
   },
 
   syncDatesFromLeader: (dates, serviceTypes, teamId, deadline = null) => {
-    const state = get();
     const now = new Date().toISOString();
 
     // Build new request keys (date-serviceTypeId) based on service type default days
+    // These calculations don't depend on current state, so can be done outside set()
     const newRequestKeys = new Set<string>();
     dates.forEach(dateStr => {
       const dayOfWeek = parseLocalDate(dateStr).getDay();
@@ -150,56 +150,61 @@ export const useAvailabilityStore = create<AvailabilityState & AvailabilityActio
       });
     });
 
-    // Get all existing keys (pending or responded)
-    const existingPendingKeys = new Set(
-      state.pendingRequests
-        .filter(r => r.teamId === teamId)
-        .map(r => makeKey(r.date, r.serviceTypeId))
-    );
-    const respondedKeys = new Set(Object.keys(state.myAvailability));
-    const allExistingKeys = new Set([...existingPendingKeys, ...respondedKeys]);
+    // Track what was added/removed/kept for return value
+    let added: string[] = [];
+    let removed: string[] = [];
+    let kept: string[] = [];
 
-    // Calculate what's new, removed, and kept
-    const added: string[] = [];
-    const removed: string[] = [];
-    const kept: string[] = [];
-
-    // Find NEW keys (not in existing pending or responded)
-    newRequestKeys.forEach(key => {
-      if (!allExistingKeys.has(key)) {
-        added.push(key);
-      } else {
-        kept.push(key);
-      }
-    });
-
-    // Find REMOVED keys (in existing but not in new list)
-    allExistingKeys.forEach(key => {
-      if (!newRequestKeys.has(key)) {
-        removed.push(key);
-      }
-    });
-
-    // Create new pending requests for ADDED keys only
-    const newPendingRequests: AvailabilityRequest[] = [];
-    added.forEach(key => {
-      const { date, serviceTypeId } = parseKey(key);
-      const st = serviceTypes.find(s => s.id === serviceTypeId);
-      if (st) {
-        newPendingRequests.push({
-          date,
-          serviceTypeId: st.id,
-          serviceTypeName: st.name,
-          serviceTime: st.serviceTime,
-          teamId,
-          deadline,
-          requestedAt: now,
-        });
-      }
-    });
-
-    // Update state
+    // All state-dependent calculations MUST be inside set() for atomicity
     set((state) => {
+      // Get all existing keys (pending or responded) from CURRENT state
+      const existingPendingKeys = new Set(
+        state.pendingRequests
+          .filter(r => r.teamId === teamId)
+          .map(r => makeKey(r.date, r.serviceTypeId))
+      );
+      const respondedKeys = new Set(Object.keys(state.myAvailability));
+      const allExistingKeys = new Set([...existingPendingKeys, ...respondedKeys]);
+
+      // Calculate what's new, removed, and kept
+      added = [];
+      removed = [];
+      kept = [];
+
+      // Find NEW keys (not in existing pending or responded)
+      newRequestKeys.forEach(key => {
+        if (!allExistingKeys.has(key)) {
+          added.push(key);
+        } else {
+          kept.push(key);
+        }
+      });
+
+      // Find REMOVED keys (in existing but not in new list)
+      allExistingKeys.forEach(key => {
+        if (!newRequestKeys.has(key)) {
+          removed.push(key);
+        }
+      });
+
+      // Create new pending requests for ADDED keys only
+      const newPendingRequests: AvailabilityRequest[] = [];
+      added.forEach(key => {
+        const { date, serviceTypeId } = parseKey(key);
+        const st = serviceTypes.find(s => s.id === serviceTypeId);
+        if (st) {
+          newPendingRequests.push({
+            date,
+            serviceTypeId: st.id,
+            serviceTypeName: st.name,
+            serviceTime: st.serviceTime,
+            teamId,
+            deadline,
+            requestedAt: now,
+          });
+        }
+      });
+
       // Remove old pending requests for this team, keep others
       const otherTeamRequests = state.pendingRequests.filter(r => r.teamId !== teamId);
 

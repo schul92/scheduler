@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.scheduler.app"
+      "bundleIdentifier": "com.worship.scheduler.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -47,6 +50,13 @@
           "sounds": []
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "00a0ac63-e90b-4625-a1db-2648240d0951"
+      }
+    },
+    "owner": "schul92"
   }
 }

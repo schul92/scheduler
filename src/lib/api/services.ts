@@ -672,7 +672,33 @@ export async function createAssignment(
   const teamId = await getTeamIdFromService(serviceId);
   await requireAdmin(teamId, userId);
 
-  // Check if assignment already exists
+  // Validate that team member belongs to this team
+  const { data: memberCheck, error: memberError } = await supabase
+    .from('team_members')
+    .select('id')
+    .eq('id', teamMemberId)
+    .eq('team_id', teamId)
+    .eq('status', 'active')
+    .single();
+
+  if (memberError || !memberCheck) {
+    throw new Error('Team member does not belong to this team or is not active');
+  }
+
+  // Validate that role belongs to this team
+  const { data: roleCheck, error: roleError } = await supabase
+    .from('roles')
+    .select('id')
+    .eq('id', roleId)
+    .eq('team_id', teamId)
+    .eq('is_active', true)
+    .single();
+
+  if (roleError || !roleCheck) {
+    throw new Error('Role does not belong to this team or is not active');
+  }
+
+  // Check if assignment already exists (use upsert behavior for race condition safety)
   const { data: existing } = await supabase
     .from('service_assignments')
     .select('id')
@@ -719,7 +745,70 @@ export async function createBulkAssignments(
   const teamId = await getTeamIdFromService(serviceId);
   await requireAdmin(teamId, userId);
 
-  const assignmentData = assignments.map((a) => ({
+  if (assignments.length === 0) {
+    return [];
+  }
+
+  // Get unique member and role IDs for batch validation
+  const memberIds = [...new Set(assignments.map((a) => a.teamMemberId))];
+  const roleIds = [...new Set(assignments.map((a) => a.roleId))];
+
+  // Validate all team members belong to this team
+  const { data: validMembers, error: memberError } = await supabase
+    .from('team_members')
+    .select('id')
+    .eq('team_id', teamId)
+    .eq('status', 'active')
+    .in('id', memberIds);
+
+  if (memberError) {
+    throw new Error(`Failed to validate team members: ${memberError.message}`);
+  }
+
+  const validMemberIds = new Set(validMembers?.map((m) => m.id) || []);
+  const invalidMembers = memberIds.filter((id) => !validMemberIds.has(id));
+  if (invalidMembers.length > 0) {
+    throw new Error('One or more team members do not belong to this team or are not active');
+  }
+
+  // Validate all roles belong to this team
+  const { data: validRoles, error: roleError } = await supabase
+    .from('roles')
+    .select('id')
+    .eq('team_id', teamId)
+    .eq('is_active', true)
+    .in('id', roleIds);
+
+  if (roleError) {
+    throw new Error(`Failed to validate roles: ${roleError.message}`);
+  }
+
+  const validRoleIds = new Set(validRoles?.map((r) => r.id) || []);
+  const invalidRoles = roleIds.filter((id) => !validRoleIds.has(id));
+  if (invalidRoles.length > 0) {
+    throw new Error('One or more roles do not belong to this team or are not active');
+  }
+
+  // Check for existing assignments to prevent duplicates
+  const { data: existing } = await supabase
+    .from('service_assignments')
+    .select('team_member_id, role_id')
+    .eq('service_id', serviceId);
+
+  const existingKeys = new Set(
+    (existing || []).map((e) => `${e.team_member_id}:${e.role_id}`)
+  );
+
+  // Filter out duplicates
+  const newAssignments = assignments.filter(
+    (a) => !existingKeys.has(`${a.teamMemberId}:${a.roleId}`)
+  );
+
+  if (newAssignments.length === 0) {
+    return []; // All assignments already exist
+  }
+
+  const assignmentData = newAssignments.map((a) => ({
     service_id: serviceId,
     team_member_id: a.teamMemberId,
     role_id: a.roleId,
@@ -1253,40 +1342,86 @@ export async function syncAssignmentsToSupabase(
   const teamId = await getTeamIdFromService(serviceId);
   await requireAdmin(teamId, userId);
 
-  // First, delete all existing assignments for this service
-  const { error: deleteError } = await supabase
+  // Get existing assignments first
+  const { data: existing, error: fetchError } = await supabase
     .from('service_assignments')
-    .delete()
+    .select('id, team_member_id, role_id')
     .eq('service_id', serviceId);
 
-  if (deleteError) {
-    throw new Error(`Failed to clear existing assignments: ${deleteError.message}`);
+  if (fetchError) {
+    throw new Error(`Failed to fetch existing assignments: ${fetchError.message}`);
   }
 
-  // If no new assignments, just return empty
-  if (assignments.length === 0) {
-    return [];
+  const existingAssignments = existing || [];
+
+  // Create lookup keys for comparison
+  const newAssignmentKeys = new Set(
+    assignments.map((a) => `${a.teamMemberId}:${a.roleId}`)
+  );
+  const existingAssignmentKeys = new Map(
+    existingAssignments.map((a) => [`${a.team_member_id}:${a.role_id}`, a.id])
+  );
+
+  // Find assignments to add (in new but not in existing)
+  const toAdd = assignments.filter(
+    (a) => !existingAssignmentKeys.has(`${a.teamMemberId}:${a.roleId}`)
+  );
+
+  // Find assignments to remove (in existing but not in new)
+  const toRemoveIds = existingAssignments
+    .filter((a) => !newAssignmentKeys.has(`${a.team_member_id}:${a.role_id}`))
+    .map((a) => a.id);
+
+  // SAFE ORDER: Insert new assignments FIRST, then delete old ones
+  // This way, if insert fails, we still have the old data
+  let insertedAssignments: ServiceAssignment[] = [];
+
+  if (toAdd.length > 0) {
+    const assignmentData = toAdd.map((a) => ({
+      service_id: serviceId,
+      team_member_id: a.teamMemberId,
+      role_id: a.roleId,
+      status: 'pending' as AssignmentStatus,
+      assigned_by: userId,
+    }));
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('service_assignments')
+      .insert(assignmentData)
+      .select();
+
+    if (insertError) {
+      throw new Error(`Failed to create assignments: ${insertError.message}`);
+    }
+
+    insertedAssignments = inserted || [];
   }
 
-  // Create new assignments
-  const assignmentData = assignments.map((a) => ({
-    service_id: serviceId,
-    team_member_id: a.teamMemberId,
-    role_id: a.roleId,
-    status: 'pending' as AssignmentStatus,
-    assigned_by: userId,
-  }));
+  // Only delete after successful insert
+  if (toRemoveIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('service_assignments')
+      .delete()
+      .in('id', toRemoveIds);
 
-  const { data, error } = await supabase
+    if (deleteError) {
+      // Log but don't throw - inserts succeeded, we don't want to lose that
+      console.error('[syncAssignmentsToSupabase] Warning: Failed to delete old assignments:', deleteError);
+    }
+  }
+
+  // Return all current assignments (kept + inserted)
+  const { data: finalAssignments, error: finalError } = await supabase
     .from('service_assignments')
-    .insert(assignmentData)
-    .select();
+    .select()
+    .eq('service_id', serviceId);
 
-  if (error) {
-    throw new Error(`Failed to create assignments: ${error.message}`);
+  if (finalError) {
+    // Return at least what we inserted
+    return insertedAssignments;
   }
 
-  return data || [];
+  return finalAssignments || [];
 }
 
 /**

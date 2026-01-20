@@ -261,74 +261,30 @@ export async function bulkSetAvailability(
     return [];
   }
 
-  // Get existing records for these dates
-  const dateStrings = dates.map((d) => d.date);
-  const { data: existing } = await supabase
+  // Prepare all records for upsert - this is atomic, all succeed or all fail
+  const upsertData = dates.map((item) => ({
+    team_id: teamId,
+    user_id: userId,
+    date: item.date,
+    is_available: item.isAvailable,
+    reason: item.reason || null,
+  }));
+
+  // Use upsert with onConflict to handle both inserts and updates atomically
+  // The unique constraint on (team_id, user_id, date) allows this to work
+  const { data, error } = await supabase
     .from('availability')
-    .select('id, date')
-    .eq('team_id', teamId)
-    .eq('user_id', userId)
-    .in('date', dateStrings);
+    .upsert(upsertData, {
+      onConflict: 'team_id,user_id,date',
+      ignoreDuplicates: false, // Update existing records
+    })
+    .select();
 
-  const existingMap = new Map(existing?.map((e) => [e.date, e.id]) || []);
-
-  // Separate into updates and inserts
-  const toUpdate: { id: string; is_available: boolean; reason: string | null }[] = [];
-  const toInsert: AvailabilityInsert[] = [];
-
-  for (const item of dates) {
-    const existingId = existingMap.get(item.date);
-    if (existingId) {
-      toUpdate.push({
-        id: existingId,
-        is_available: item.isAvailable,
-        reason: item.reason || null,
-      });
-    } else {
-      toInsert.push({
-        team_id: teamId,
-        user_id: userId,
-        date: item.date,
-        is_available: item.isAvailable,
-        reason: item.reason || null,
-      });
-    }
+  if (error) {
+    throw new Error(`Failed to set availability: ${error.message}`);
   }
 
-  const results: Availability[] = [];
-
-  // Perform updates
-  for (const update of toUpdate) {
-    const { data, error } = await supabase
-      .from('availability')
-      .update({
-        is_available: update.is_available,
-        reason: update.reason,
-      })
-      .eq('id', update.id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to update availability: ${error.message}`);
-    }
-    results.push(data);
-  }
-
-  // Perform inserts
-  if (toInsert.length > 0) {
-    const { data, error } = await supabase
-      .from('availability')
-      .insert(toInsert)
-      .select();
-
-    if (error) {
-      throw new Error(`Failed to set availability: ${error.message}`);
-    }
-    results.push(...(data || []));
-  }
-
-  return results.sort((a, b) => a.date.localeCompare(b.date));
+  return (data || []).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /**

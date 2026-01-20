@@ -27,6 +27,7 @@ import { useSchedulingStore } from '../../../../store/schedulingStore';
 import { useServiceTypeStore } from '../../../../store/serviceTypeStore';
 import { useTeamStore } from '../../../../store/teamStore';
 import { useSafeNavigation } from '../../../../hooks/useNavigation';
+import { usePermissions } from '../../../../hooks/usePermissions';
 import { supabase } from '../../../../lib/supabase';
 
 // Instrument definitions for resolving local assignments
@@ -84,6 +85,7 @@ export default function DatesOverviewScreen() {
   const serviceTypes = getServiceTypes(teamId || '');
   const { teams } = useTeamStore();
   const team = teams.find(t => t.id === teamId);
+  const { isMember, isLoading: permissionsLoading } = usePermissions(teamId);
 
   // Team members fetched from Supabase
   const [teamMembers, setTeamMembers] = useState<Array<{ id: string; nickname: string | null; user: { full_name: string | null } | null }>>([]);
@@ -605,7 +607,37 @@ export default function DatesOverviewScreen() {
     return { title, dates, members };
   }, [dateGroups, team, periodTitle, language, getInstrumentEmoji]);
 
-  if (isLoadingServices) {
+  // Permission check - must be a member of the team to view
+  if (!permissionsLoading && !isMember) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <TouchableOpacity style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} onPress={() => safeGoBack()}>
+            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <Ionicons name="lock-closed" size={48} color={colors.error} />
+          <Text style={{ marginTop: 16, fontSize: 17, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' }}>
+            {language === 'ko' ? '접근 권한이 없습니다' : 'Access Denied'}
+          </Text>
+          <Text style={{ marginTop: 8, fontSize: 14, color: colors.textSecondary, textAlign: 'center' }}>
+            {language === 'ko' ? '이 팀의 일정을 볼 수 있는 권한이 없습니다.' : 'You do not have permission to view this team\'s schedule.'}
+          </Text>
+          <TouchableOpacity
+            style={{ marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: 12 }}
+            onPress={() => router.replace('/(main)/(tabs)')}
+          >
+            <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 15 }}>
+              {language === 'ko' ? '홈으로 이동' : 'Go Home'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isLoadingServices || permissionsLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
